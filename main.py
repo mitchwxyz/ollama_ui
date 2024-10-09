@@ -37,6 +37,7 @@ def set_system_msg() -> None:
         st.session_state.messages.append(st.session_state.system_msg)
         st.rerun()
 
+
 def clear_chat() -> None:
     st.session_state.messages = [
         m for m in st.session_state.messages if m.get("role") == "system"
@@ -60,7 +61,7 @@ with st.sidebar:
     # Model
     selected_model = st.selectbox(
         "Model",
-        options=[m["name"] for m in st.session_state.model_list if isinstance(m, dict)]
+        options=[m["name"] for m in st.session_state.model_list if isinstance(m, dict)],
     )
     # Update Parameters
     if selected_model:
@@ -121,28 +122,28 @@ with st.sidebar:
                 min_value=1024,
                 max_value=16384,
                 value=st.session_state.input_params["NUM_CTX"],
-                step=1
+                step=1,
             )
             form_params["num_predict"] = st.slider(
                 "num_predict",
                 min_value=-1,
                 max_value=512,
                 value=st.session_state.input_params["NUM_PREDICT"],
-                step=1
+                step=1,
             )
             form_params["repeat_last_n"] = st.slider(
                 "repeat_last_n",
                 min_value=512,
                 max_value=4096,
                 value=st.session_state.input_params["REPEAT_LAST_N"],
-                step=128
+                step=128,
             )
             form_params["repeat_penalty"] = st.slider(
                 "repeat_penalty",
                 min_value=0.1,
                 max_value=2.0,
                 value=st.session_state.input_params["REPEAT_PENALTY"],
-                step=0.01
+                step=0.01,
             )
 
         with st.expander("Perplexity"):
@@ -181,7 +182,9 @@ if not selected_model:
 # Body
 for msg_id, message in enumerate(st.session_state.messages):
     if message["role"] == "assistant":
-        st.chat_message(message["role"], avatar=st.session_state.input_params["ICON"]).markdown(message["content"])
+        st.chat_message(
+            message["role"], avatar=st.session_state.input_params["ICON"]
+        ).markdown(message["content"])
     elif message["role"] == "user":
         st.chat_message(message["role"], avatar="😎").markdown(message["content"])
 
