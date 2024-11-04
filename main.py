@@ -14,7 +14,7 @@ if "system_msg" not in st.session_state:
     st.session_state.system_msg = {"role": "system", "content": ""}
 
 if "input_params" not in st.session_state:
-    st.session_state.input_params = get_defaults("")
+    st.session_state.input_params = dict()
 
 if "ollama_parms" not in st.session_state:
     st.session_state.ollama_params = ollama.Options()
