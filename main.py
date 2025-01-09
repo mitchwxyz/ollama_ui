@@ -3,7 +3,7 @@ import streamlit as st
 
 from httpx import ConnectError
 
-from default_parameters import get_defaults
+from default_parameters import Parameters
 
 
 # Intialize  Session State vars
@@ -64,8 +64,9 @@ with st.sidebar:
         options=[m["name"] for m in st.session_state.model_list if isinstance(m, dict)],
     )
     # Update Parameters
+    params = Parameters()
     if selected_model:
-        st.session_state.input_params = get_defaults(selected_model)
+        st.session_state.input_params = params.get_defaults(selected_model)
 
     st.subheader("LLM Parameters")
     # Set System Message
@@ -79,17 +80,17 @@ with st.sidebar:
         with st.expander("Temperature"):
             form_params["temperature"] = st.slider(
                 "temperature",
-                min_value=0.1,
+                min_value=0.0,
                 max_value=2.0,
-                value=st.session_state.input_params["TEMPERATURE"],
-                step=0.1,
+                value=st.session_state.input_params["temperature"],
+                step=0.05,
                 help="The temperature of the model. Increasing the temperature will make the model answer more creatively.",
             )
             form_params["top_k"] = st.slider(
                 "top_k",
-                min_value=1,
+                min_value=0,
                 max_value=100,
-                value=st.session_state.input_params["TOP_K"],
+                value=st.session_state.input_params["top_k"],
                 step=1,
                 help="Reduces the probability of generating nonsense. A higher value (e.g. 100) will give more diverse answers, while a lower value (e.g. 10) will be more conservative.",
             )
@@ -97,7 +98,7 @@ with st.sidebar:
                 "top_p",
                 min_value=0.01,
                 max_value=1.0,
-                value=st.session_state.input_params["TOP_P"],
+                value=st.session_state.input_params["top_p"],
                 step=0.01,
                 help="Works together with top-k. A higher value (e.g., 0.95) will lead to more diverse text, while a lower value (e.g., 0.5) will generate more focused and conservative text.",
             )
@@ -105,14 +106,14 @@ with st.sidebar:
                 "min_p",
                 min_value=0.01,
                 max_value=form_params["top_p"],
-                value=st.session_state.input_params["MIN_P"],
+                value=st.session_state.input_params["min_p"],
                 step=0.01,
             )
             form_params["typical_p"] = st.slider(
                 "typical_p",
                 min_value=form_params["min_p"],
                 max_value=form_params["top_p"],
-                value=st.session_state.input_params["TYPICAL_P"],
+                value=st.session_state.input_params["typical_p"],
                 step=0.01,
             )
 
@@ -120,29 +121,29 @@ with st.sidebar:
             form_params["num_ctx"] = st.slider(
                 "num_ctx",
                 min_value=1024,
-                max_value=16384,
-                value=st.session_state.input_params["NUM_CTX"],
+                max_value=1024 * 48,
+                value=st.session_state.input_params["num_ctx"],
                 step=1,
             )
             form_params["num_predict"] = st.slider(
                 "num_predict",
                 min_value=-1,
-                max_value=512,
-                value=st.session_state.input_params["NUM_PREDICT"],
+                max_value=2048,
+                value=st.session_state.input_params["num_predict"],
                 step=1,
             )
             form_params["repeat_last_n"] = st.slider(
                 "repeat_last_n",
                 min_value=512,
                 max_value=4096,
-                value=st.session_state.input_params["REPEAT_LAST_N"],
+                value=st.session_state.input_params["repeat_last_n"],
                 step=128,
             )
             form_params["repeat_penalty"] = st.slider(
                 "repeat_penalty",
                 min_value=0.1,
                 max_value=2.0,
-                value=st.session_state.input_params["REPEAT_PENALTY"],
+                value=st.session_state.input_params["repeat_penalty"],
                 step=0.01,
             )
 
@@ -150,14 +151,14 @@ with st.sidebar:
             form_params["mirostat"] = st.select_slider(
                 "mirostat",
                 options=[0, 1, 2],
-                value=st.session_state.input_params["MIROSTAT"],
+                value=st.session_state.input_params["mirostat"],
                 help="Enable Mirostat sampling for controlling perplexity. (0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0)",
             )
             form_params["mirostat_eta"] = st.slider(
                 "mirostat_eta",
                 min_value=0.0,
                 max_value=1.0,
-                value=st.session_state.input_params["MIROSTAT_ETA"],
+                value=st.session_state.input_params["mirostat_eta"],
                 step=0.05,
                 help="Influences how quickly the algorithm responds to feedback from the generated text. A lower learning rate will result in slower adjustments, while a higher learning rate will make the algorithm more responsive.",
             )
@@ -165,14 +166,24 @@ with st.sidebar:
                 "mirostat_tau",
                 min_value=0.0,
                 max_value=10.0,
-                value=st.session_state.input_params["MIROSTAT_TAU"],
+                value=st.session_state.input_params["mirostat_tau"],
                 step=0.5,
                 help="Controls the balance between coherence and diversity of the output. A lower value will result in more focused and coherent text.",
             )
 
-        # Submit to session state
-        if st.form_submit_button("Save") or not st.session_state.ollama_params:
-            st.session_state.ollama_params = ollama.Options(**form_params)
+        col1, col2 = st.columns([1,1])
+        with col1:
+            # Submit to session state
+            if st.form_submit_button("Update") or not st.session_state.ollama_params:
+                st.session_state.ollama_params = ollama.Options(**form_params)
+        with col2:
+            if st.form_submit_button("Save Default"):
+                done = params.update_defaults(
+                    selected_model,
+                    st.session_state.ollama_params
+                )
+                if done:
+                    st.toast("Current Parameters written to default file.")
 
 
 # Stop if no model is active
@@ -183,7 +194,7 @@ if not selected_model:
 for msg_id, message in enumerate(st.session_state.messages):
     if message["role"] == "assistant":
         st.chat_message(
-            message["role"], avatar=st.session_state.input_params["ICON"]
+            message["role"], avatar=st.session_state.input_params["icon"]
         ).markdown(message["content"])
     elif message["role"] == "user":
         st.chat_message(message["role"], avatar="😎").markdown(message["content"])
@@ -197,7 +208,7 @@ if prompt_text:
         st.session_state.messages.append({"role": "user", "content": prompt_text})
         st.chat_message("user", avatar="😎").markdown(prompt_text)
 
-        with st.chat_message("assistant", avatar=st.session_state.input_params["ICON"]):
+        with st.chat_message("assistant", avatar=st.session_state.input_params["icon"]):
             message_placeholder = st.empty()
             full_response = ""
 

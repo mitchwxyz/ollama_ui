@@ -1,42 +1,61 @@
 import glob
 import json
-
 from pathlib import Path
 
-# Path to config directory
-CONFIG_DIR = Path(__file__).parent / "model_configs"
 
-# Create path if it doesn't exist
-CONFIG_DIR.mkdir(exist_ok=True)
+class Parameters():
+    # Default configuration as fallback (kept for reference and initial setup)
+    DEFAULT_CONFIG = {
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 0.9,
+        "min_p": 0.02,
+        "typical_p": 0.75,
+        "num_ctx": 8192,
+        "num_predict": 256,
+        "repeat_last_n": 64,
+        "repeat_penalty": 1.21,
+        "mirostat": 0,
+        "mirostat_eta": 0.10,
+        "mirostat_tau": 4.0,
+        "icon": "🤖",
+    }
 
-# Default configuration as fallback (kept for reference and initial setup)
-DEFAULT_CONFIG = {
-    "ICON": "🤖",
-    "TEMPERATURE": 0.7,
-    "TOP_K": 40,
-    "TOP_P": 0.9,
-    "MIN_P": 0.02,
-    "TYPICAL_P": 0.75,
-    "NUM_CTX": 8192,
-    "NUM_PREDICT": 256,
-    "REPEAT_LAST_N": 64,
-    "REPEAT_PENALTY": 1.21,
-    "MIROSTAT": 0,
-    "MIROSTAT_ETA": 0.10,
-    "MIROSTAT_TAU": 4.0,
-}
+    def __init__(self,
+        config_dir: Path = Path(__file__).parent / "model_configs",
+    ) -> None:
+        # Path to model parameters
+        self.CONFIG_DIR = config_dir
 
-MODEL_CONFIGS = glob.glob(f"{CONFIG_DIR}/*.json")
+        # Create path if it doesn't exist
+        self.CONFIG_DIR.mkdir(exist_ok=True)
 
-def get_defaults(model: str)-> dict|None:
-    if not model:
-        return None
-    filename = f"{CONFIG_DIR}/{model.split(":")[0]}.json"
+        # Get all Files
+        self.MODEL_CONFIGS = glob.glob(f"{self.CONFIG_DIR}/*.json")
 
-    if filename in MODEL_CONFIGS:
-        with open(filename, "r") as f:
-            return json.load(f)
-    else:
-        with open(f"{CONFIG_DIR}/{filename}", "w") as f:
-            json.dump(DEFAULT_CONFIG, f)
-        return DEFAULT_CONFIG
+    def get_defaults(self, model: str)-> dict|None:
+        if not model:
+            return None
+        filename = f"{self.CONFIG_DIR}/{model.split(":")[0]}.json"
+
+        if filename in self.MODEL_CONFIGS:
+            # Return model parameters
+            with open(filename, "r") as f:
+                return json.load(f)
+        else:
+            # Create a new Model Config File from default
+            with open(filename, "w") as f:
+                json.dump(self.DEFAULT_CONFIG, f)
+            return self.DEFAULT_CONFIG
+
+    def update_defaults(self, model: str, ollama_params: dict) -> bool:
+        if not model:
+            return False
+        filename = f"{self.CONFIG_DIR}/{model.split(":")[0]}.json"
+        with open(filename, "r") as fo:
+            old_data = json.load(fo)
+
+        ollama_params["icon"] = old_data["icon"]
+        with open(filename, "w") as fn:
+            json.dump(ollama_params, fn)
+        return True
