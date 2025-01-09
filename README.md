@@ -1,4 +1,4 @@
-## A local UI for [ollama](ollama.com) built with [streamlit](streamlit.io)
+## A local UI for [ollama](https://ollama.com) built with [streamlit](https://streamlit.io)
 
 ### Features
 - Set System Prompt
