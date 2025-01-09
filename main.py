@@ -1,12 +1,41 @@
 import ollama
+from string import Template
 import streamlit as st
-
+from streamlit.components.v1 import html
+from textwrap import dedent
 from httpx import ConnectError
 
 from default_parameters import Parameters
 
 
+class HTML_Template:
+    base_style = Template(
+        dedent(
+            """
+            <style>
+                $css
+            </style>"""
+        )
+    )
+
+class CSS:
+    page_style = """
+    .st-key-app_css button{
+            border-radius:25px;
+            box-shadow: 3px 5px 10px 0px rgba(128, 128, 128, 0.245);
+            position:fixed;
+            top:4rem;
+            right:2rem;
+        }
+    """
+
+st.html(HTML_Template.base_style.substitute(css=CSS.page_style))
+
 # Intialize  Session State vars
+if "app_params" not in st.session_state:
+    st.session_state.app_params = {
+        "avatar": "😎"
+    }
 if "model_list" not in st.session_state:
     st.session_state.model_list = []
 
@@ -190,6 +219,18 @@ with st.sidebar:
 if not selected_model:
     st.stop()
 
+# General Parameters
+@st.dialog("App Settings")
+def show_app_params():
+    settings_temp = {}
+    with st.form("Settings"):
+        settings_temp["avatar"] = st.selectbox("My Avatar", ["😎", "😀", "🤪"])
+
+        if st.form_submit_button("Save"):
+            st.session_state.app_params = settings_temp
+            st.rerun()
+
+
 # Body
 for msg_id, message in enumerate(st.session_state.messages):
     if message["role"] == "assistant":
@@ -197,8 +238,7 @@ for msg_id, message in enumerate(st.session_state.messages):
             message["role"], avatar=st.session_state.input_params["icon"]
         ).markdown(message["content"])
     elif message["role"] == "user":
-        st.chat_message(message["role"], avatar="😎").markdown(message["content"])
-
+        st.chat_message(message["role"], avatar=st.session_state.app_params.get("avatar")).markdown(message["content"])
 
 prompt_text = st.chat_input("Enter a prompt here...", key="prompt_text")
 if prompt_text:
@@ -206,7 +246,7 @@ if prompt_text:
     # print(selected_model, st.session_state.ollama_params)
     try:
         st.session_state.messages.append({"role": "user", "content": prompt_text})
-        st.chat_message("user", avatar="😎").markdown(prompt_text)
+        st.chat_message("user", avatar=st.session_state.app_params.get("avatar")).markdown(prompt_text)
 
         with st.chat_message("assistant", avatar=st.session_state.input_params["icon"]):
             message_placeholder = st.empty()
@@ -237,3 +277,7 @@ if prompt_text:
 
     except Exception as e:
         st.error(e, icon="⛔️")
+
+# Custom CSS Elements
+if st.button("", icon=":material/format_paint:", type="primary", key="app_css"):
+    show_app_params()
