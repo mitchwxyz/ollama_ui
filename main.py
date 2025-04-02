@@ -5,6 +5,7 @@ import ollama
 import streamlit as st
 
 from default_parameters import Parameters
+from helpers import replace_reasoning_tags
 
 
 class HTMLTemplate:
@@ -270,9 +271,7 @@ if prompt_text:
                     full_response += content
                     message_placeholder.markdown(full_response + "▌")
 
-            resonse_r1 = full_response.replace(
-                "<think>", "<details><summary>thinking...</summary>"
-            ).replace("</think>", "</details>")
+            resonse_r1 = replace_reasoning_tags(full_response)
             message_placeholder.markdown(resonse_r1, unsafe_allow_html=True)
 
         st.session_state.messages.append(
