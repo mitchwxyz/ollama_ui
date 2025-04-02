@@ -234,7 +234,7 @@ for message in st.session_state.messages:
     if message["role"] == "assistant":
         st.chat_message(
             message["role"], avatar=st.session_state.input_params["icon"]
-        ).markdown(message["content"])
+        ).markdown(replace_reasoning_tags(message["content"]), unsafe_allow_html=True)
     elif message["role"] == "user":
         st.chat_message(
             message["role"], avatar=st.session_state.app_params.get("avatar")
