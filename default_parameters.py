@@ -12,10 +12,10 @@ class Parameters:
         "top_k": 40,
         "top_p": 0.9,
         "typical_p": 0.75,
-        "num_ctx": 8192,
+        "num_ctx": 8000,
         "num_predict": 256,
-        "repeat_last_n": 64,
-        "repeat_penalty": 1.21,
+        "repeat_last_n": 128,
+        "repeat_penalty": 1.00,
         "mirostat": 0,
         "mirostat_eta": 0.10,
         "mirostat_tau": 4.0,
@@ -42,7 +42,7 @@ class Parameters:
 
         if filename in self.MODEL_CONFIGS:
             # Return model parameters
-            with open(filename, "r") as f:
+            with open(filename) as f:
                 return json.load(f)
         else:
             # Create a new Model Config File from default
@@ -54,7 +54,7 @@ class Parameters:
         if not model:
             return False
         filename = f"{self.CONFIG_DIR}/{model.split(':')[0]}.json"
-        with open(filename, "r") as fo:
+        with open(filename) as fo:
             old_data = json.load(fo)
 
         params = ollama_params.dict(exclude_unset=True, exclude_none=True)

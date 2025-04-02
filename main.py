@@ -119,7 +119,7 @@ with st.sidebar:
             form_params["temperature"] = st.slider(
                 "temperature",
                 min_value=0.0,
-                max_value=2.0,
+                max_value=2.5,
                 value=st.session_state.input_params["temperature"],
                 step=0.05,
                 help="The temperature of the model. Increasing the temperature will make the model answer more creatively.",
@@ -150,21 +150,21 @@ with st.sidebar:
         with st.expander("Context"):
             form_params["num_ctx"] = st.slider(
                 "num_ctx",
-                min_value=1024,
-                max_value=1024 * 48,
+                min_value=1000,
+                max_value=128_000,
                 value=st.session_state.input_params["num_ctx"],
-                step=1,
+                step=1000,
             )
             form_params["num_predict"] = st.slider(
                 "num_predict",
                 min_value=-1,
                 max_value=2048,
                 value=st.session_state.input_params["num_predict"],
-                step=1,
+                step=128,
             )
             form_params["repeat_last_n"] = st.slider(
                 "repeat_last_n",
-                min_value=512,
+                min_value=128,
                 max_value=4096,
                 value=st.session_state.input_params["repeat_last_n"],
                 step=128,
