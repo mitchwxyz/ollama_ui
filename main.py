@@ -20,13 +20,20 @@ class HTMLTemplate:
 
 class CSS:
     page_style = """
-    .st-key-app_css button{
-            border-radius:25px;
-            box-shadow: 3px 5px 10px 0px rgba(128, 128, 128, 0.245);
-            position:fixed;
-            top:4rem;
-            right:2rem;
-        }
+    .st-key-app_css button {
+        border-radius: 25px;
+        box-shadow: 3px 5px 10px 0px rgba(128, 128, 128, 0.245);
+        position: fixed;
+        top: 4rem;
+        right: 2rem;
+    }
+    details {
+        color: grey;
+    }
+    summary {
+        color: grey;
+        font-weight: bold;
+    }
     """
 
 
@@ -263,7 +270,10 @@ if prompt_text:
                     full_response += content
                     message_placeholder.markdown(full_response + "▌")
 
-            message_placeholder.markdown(full_response)
+            resonse_r1 = full_response.replace(
+                "<think>", "<details><summary>thinking...</summary>"
+            ).replace("</think>", "</details>")
+            message_placeholder.markdown(resonse_r1, unsafe_allow_html=True)
 
         st.session_state.messages.append(
             {"role": "assistant", "content": full_response}
