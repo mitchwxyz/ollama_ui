@@ -2,6 +2,8 @@ import glob
 import json
 from pathlib import Path
 
+from ollama import Options
+
 
 class Parameters:
     # Default configuration as fallback (kept for reference and initial setup)
@@ -9,7 +11,6 @@ class Parameters:
         "temperature": 0.7,
         "top_k": 40,
         "top_p": 0.9,
-        "min_p": 0.02,
         "typical_p": 0.75,
         "num_ctx": 8192,
         "num_predict": 256,
@@ -49,14 +50,15 @@ class Parameters:
                 json.dump(self.DEFAULT_CONFIG, f)
             return self.DEFAULT_CONFIG
 
-    def update_defaults(self, model: str, ollama_params: dict) -> bool:
+    def update_defaults(self, model: str, ollama_params: Options) -> bool:
         if not model:
             return False
         filename = f"{self.CONFIG_DIR}/{model.split(':')[0]}.json"
         with open(filename, "r") as fo:
             old_data = json.load(fo)
 
-        ollama_params["icon"] = old_data["icon"]
+        params = ollama_params.dict(exclude_unset=True, exclude_none=True)
+        params["icon"] = old_data["icon"]
         with open(filename, "w") as fn:
-            json.dump(ollama_params, fn)
+            json.dump(params, fn)
         return True

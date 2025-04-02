@@ -1,14 +1,13 @@
-import ollama
 from string import Template
-import streamlit as st
-from streamlit.components.v1 import html
 from textwrap import dedent
-from httpx import ConnectError
+
+import ollama
+import streamlit as st
 
 from default_parameters import Parameters
 
 
-class HTML_Template:
+class HTMLTemplate:
     base_style = Template(
         dedent(
             """
@@ -17,6 +16,7 @@ class HTML_Template:
             </style>"""
         )
     )
+
 
 class CSS:
     page_style = """
@@ -29,13 +29,12 @@ class CSS:
         }
     """
 
-st.html(HTML_Template.base_style.substitute(css=CSS.page_style))
+
+st.html(HTMLTemplate.base_style.substitute(css=CSS.page_style))
 
 # Intialize  Session State vars
 if "app_params" not in st.session_state:
-    st.session_state.app_params = {
-        "avatar": "😎"
-    }
+    st.session_state.app_params = {"avatar": "😎"}
 if "model_list" not in st.session_state:
     st.session_state.model_list = []
 
@@ -81,21 +80,24 @@ with st.sidebar:
         try:
             st.session_state.model_list = ollama.list()["models"]
             st.rerun()
-        except ConnectError:
+        except ConnectionError:
             st.session_state.model_list = []
             st.warning("Not Connected", icon="❌")
+            st.toast("Is Ollama running?", icon="👀")
     else:
         st.success("Ollama Connected", icon="✅")
 
     # Model
     selected_model = st.selectbox(
         "Model",
-        options=[m["name"] for m in st.session_state.model_list if isinstance(m, dict)],
+        options=[m["model"] for m in st.session_state.model_list],
     )
     # Update Parameters
     params = Parameters()
-    if selected_model:
-        st.session_state.input_params = params.get_defaults(selected_model)
+    # Stop if no model selected
+    if not selected_model:
+        st.stop()
+    st.session_state.input_params = params.get_defaults(selected_model)
 
     st.subheader("LLM Parameters")
     # Set System Message
@@ -131,16 +133,8 @@ with st.sidebar:
                 step=0.01,
                 help="Works together with top-k. A higher value (e.g., 0.95) will lead to more diverse text, while a lower value (e.g., 0.5) will generate more focused and conservative text.",
             )
-            form_params["min_p"] = st.slider(
-                "min_p",
-                min_value=0.01,
-                max_value=form_params["top_p"],
-                value=st.session_state.input_params["min_p"],
-                step=0.01,
-            )
             form_params["typical_p"] = st.slider(
                 "typical_p",
-                min_value=form_params["min_p"],
                 max_value=form_params["top_p"],
                 value=st.session_state.input_params["typical_p"],
                 step=0.01,
@@ -200,24 +194,20 @@ with st.sidebar:
                 help="Controls the balance between coherence and diversity of the output. A lower value will result in more focused and coherent text.",
             )
 
-        col1, col2 = st.columns([1,1])
+        col1, col2 = st.columns([1, 1])
         with col1:
             # Submit to session state
             if st.form_submit_button("Update") or not st.session_state.ollama_params:
                 st.session_state.ollama_params = ollama.Options(**form_params)
         with col2:
+            # Save to file
             if st.form_submit_button("Save Default"):
                 done = params.update_defaults(
-                    selected_model,
-                    st.session_state.ollama_params
+                    selected_model, ollama.Options(**form_params)
                 )
                 if done:
                     st.toast("Current Parameters written to default file.")
 
-
-# Stop if no model is active
-if not selected_model:
-    st.stop()
 
 # General Parameters
 @st.dialog("App Settings")
@@ -232,13 +222,15 @@ def show_app_params():
 
 
 # Body
-for msg_id, message in enumerate(st.session_state.messages):
+for message in st.session_state.messages:
     if message["role"] == "assistant":
         st.chat_message(
             message["role"], avatar=st.session_state.input_params["icon"]
         ).markdown(message["content"])
     elif message["role"] == "user":
-        st.chat_message(message["role"], avatar=st.session_state.app_params.get("avatar")).markdown(message["content"])
+        st.chat_message(
+            message["role"], avatar=st.session_state.app_params.get("avatar")
+        ).markdown(message["content"])
 
 prompt_text = st.chat_input("Enter a prompt here...", key="prompt_text")
 if prompt_text:
@@ -246,7 +238,9 @@ if prompt_text:
     # print(selected_model, st.session_state.ollama_params)
     try:
         st.session_state.messages.append({"role": "user", "content": prompt_text})
-        st.chat_message("user", avatar=st.session_state.app_params.get("avatar")).markdown(prompt_text)
+        st.chat_message(
+            "user", avatar=st.session_state.app_params.get("avatar")
+        ).markdown(prompt_text)
 
         with st.chat_message("assistant", avatar=st.session_state.input_params["icon"]):
             message_placeholder = st.empty()
