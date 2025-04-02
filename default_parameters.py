@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 
-class Parameters():
+class Parameters:
     # Default configuration as fallback (kept for reference and initial setup)
     DEFAULT_CONFIG = {
         "temperature": 0.7,
@@ -21,7 +21,8 @@ class Parameters():
         "icon": "🤖",
     }
 
-    def __init__(self,
+    def __init__(
+        self,
         config_dir: Path = Path(__file__).parent / "model_configs",
     ) -> None:
         # Path to model parameters
@@ -33,10 +34,10 @@ class Parameters():
         # Get all Files
         self.MODEL_CONFIGS = glob.glob(f"{self.CONFIG_DIR}/*.json")
 
-    def get_defaults(self, model: str)-> dict|None:
+    def get_defaults(self, model: str) -> dict | None:
         if not model:
             return None
-        filename = f"{self.CONFIG_DIR}/{model.split(":")[0]}.json"
+        filename = f"{self.CONFIG_DIR}/{model.split(':')[0]}.json"
 
         if filename in self.MODEL_CONFIGS:
             # Return model parameters
@@ -51,7 +52,7 @@ class Parameters():
     def update_defaults(self, model: str, ollama_params: dict) -> bool:
         if not model:
             return False
-        filename = f"{self.CONFIG_DIR}/{model.split(":")[0]}.json"
+        filename = f"{self.CONFIG_DIR}/{model.split(':')[0]}.json"
         with open(filename, "r") as fo:
             old_data = json.load(fo)
 
