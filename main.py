@@ -9,6 +9,8 @@ from helpers import replace_reasoning_tags
 
 
 class HTMLTemplate:
+    """HTML hack for styling."""
+
     base_style = Template(
         dedent(
             """
@@ -20,6 +22,8 @@ class HTMLTemplate:
 
 
 class CSS:
+    """Define CSS styles."""
+
     page_style = """
     .st-key-app_css button {
         border-radius: 25px;
@@ -62,6 +66,7 @@ if "messages" not in st.session_state:
 # Sidebar Functions
 @st.dialog("System Message")
 def set_system_msg() -> None:
+    """Open a dialog to set the system message."""
     prompt = st.text_area(
         "Input system message", value=st.session_state.system_msg["content"]
     )
@@ -75,6 +80,7 @@ def set_system_msg() -> None:
 
 
 def clear_chat() -> None:
+    """Clear the chat history."""
     st.session_state.messages = [
         m for m in st.session_state.messages if m.get("role") == "system"
     ]
@@ -204,22 +210,26 @@ with st.sidebar:
 
         col1, col2 = st.columns([1, 1])
         with col1:
-            # Submit to session state
-            if st.form_submit_button("Update") or not st.session_state.ollama_params:
-                st.session_state.ollama_params = ollama.Options(**form_params)
-        with col2:
             # Save to file
-            if st.form_submit_button("Save Default"):
+            if st.form_submit_button("Save as Default"):
                 done = params.update_defaults(
                     selected_model, ollama.Options(**form_params)
                 )
                 if done:
                     st.toast("Current Parameters written to default file.")
+        with col2:
+            # Submit to session state
+            if (
+                st.form_submit_button("Update Model")
+                or not st.session_state.ollama_params
+            ):
+                st.session_state.ollama_params = ollama.Options(**form_params)
 
 
 # General Parameters
 @st.dialog("App Settings")
 def show_app_params():
+    """Open app settings."""
     settings_temp = {}
     with st.form("Settings"):
         settings_temp["avatar"] = st.selectbox("My Avatar", ["😎", "😀", "🤪"])

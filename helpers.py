@@ -1,5 +1,5 @@
 def replace_reasoning_tags(input_string):
-    # Dictionary mapping old to new values
+    """Replace specific tags in a string with corresponding HTML tags."""
     replace_dict = {
         "<think>": "<details><summary>thinking...</summary>",
         "</think>": "</details>",

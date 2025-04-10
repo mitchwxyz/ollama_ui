@@ -1,17 +1,24 @@
 import glob
 import json
 from pathlib import Path
+from typing import Any, ClassVar
 
 from ollama import Options
 
 
 class Parameters:
-    # Default configuration as fallback (kept for reference and initial setup)
-    DEFAULT_CONFIG = {
+    """Handles model parameter configuration for Ollama models.
+
+    This class manages loading, saving, and updating model parameters,
+    with fallback to sensible defaults when no configuration exists.
+    """
+
+    # Default configuration for initial setup
+    DEFAULT_CONFIG: ClassVar[dict] = {
         "temperature": 0.7,
         "top_k": 40,
         "top_p": 0.9,
-        "typical_p": 0.75,
+        "typical_p": 0.4,
         "num_ctx": 8000,
         "num_predict": 256,
         "repeat_last_n": 128,
@@ -26,39 +33,78 @@ class Parameters:
         self,
         config_dir: Path = Path(__file__).parent / "model_configs",
     ) -> None:
+        """Initialize the Parameters manager.
+
+        Args:
+            config_dir: Directory path where model configurations are stored.
+
+        """
         # Path to model parameters
-        self.CONFIG_DIR = config_dir
+        self.config_dir = config_dir
 
-        # Create path if it doesn't exist
-        self.CONFIG_DIR.mkdir(exist_ok=True)
+        # Create config directory if it doesn't exist
+        self.config_dir.mkdir(exist_ok=True)
 
-        # Get all Files
-        self.MODEL_CONFIGS = glob.glob(f"{self.CONFIG_DIR}/*.json")
+        # Get all existing configuration files
+        self.model_configs = glob.glob(f"{self.config_dir}/*.json")
 
-    def get_defaults(self, model: str) -> dict | None:
+    def get_defaults(self, model: str) -> dict[str, Any]:
+        """Retrieve default parameters for a specific model.
+
+        If no configuration exists for the model, creates one with default values.
+
+        Args:
+            model: Name of the model to get parameters for
+
+        Returns:
+            Dictionary of model parameters or None if model name is empty
+
+        """
         if not model:
-            return None
-        filename = f"{self.CONFIG_DIR}/{model.split(':')[0]}.json"
+            raise ValueError("No model defined.")
 
-        if filename in self.MODEL_CONFIGS:
-            # Return model parameters
-            with open(filename) as f:
-                return json.load(f)
+        model_name = model.split(":")[0]
+        config_path = f"{self.config_dir}/{model_name}.json"
+
+        if config_path in self.model_configs:
+            # Return existing model parameters
+            with open(config_path) as config_file:
+                return json.load(config_file)
         else:
-            # Create a new Model Config File from default
-            with open(filename, "w") as f:
-                json.dump(self.DEFAULT_CONFIG, f)
+            # Create a new model config file from defaults
+            with open(config_path, "w") as config_file:
+                json.dump(self.DEFAULT_CONFIG, config_file)
             return self.DEFAULT_CONFIG
 
     def update_defaults(self, model: str, ollama_params: Options) -> bool:
+        """Update the default parameters for a specific model.
+
+        Args:
+            model: Name of the model to update parameters for
+            ollama_params: New parameters from Ollama to save
+
+        Returns:
+            True if update was successful, False otherwise
+
+        """
         if not model:
             return False
-        filename = f"{self.CONFIG_DIR}/{model.split(':')[0]}.json"
-        with open(filename) as fo:
-            old_data = json.load(fo)
 
+        model_name = model.split(":")[0]
+        config_path = f"{self.config_dir}/{model_name}.json"
+
+        # Read existing config to preserve icon
+        with open(config_path) as config_file:
+            existing_config = json.load(config_file)
+
+        # Get parameters from Ollama options
         params = ollama_params.dict(exclude_unset=True, exclude_none=True)
-        params["icon"] = old_data["icon"]
-        with open(filename, "w") as fn:
-            json.dump(params, fn)
+
+        # Preserve the icon from existing configuration
+        params["icon"] = existing_config["icon"]
+
+        # Write updated configuration
+        with open(config_path, "w") as config_file:
+            json.dump(params, config_file)
+
         return True
