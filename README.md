@@ -6,4 +6,5 @@
 - Adjust parameters in the UI
 
 # To Do
+- [ ] Manage models, and modelfile inputs (parameters, template, system, etc.)
 - [ ] Automatically determine context size that will fit in memory
