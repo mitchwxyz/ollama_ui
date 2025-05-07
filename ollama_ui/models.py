@@ -11,6 +11,8 @@ REASONING_TAGS = Literal["think", "thinking", "reasoning"]
 
 @dataclass
 class Message:
+    """Represent ollama chat message and UI strucutred format."""
+
     role: ROLES
     content: str = ""
     main_text: str | None = None
@@ -54,6 +56,7 @@ class Message:
         console.print(text)
 
     def update_from_stream(self, stream: Iterable):
+        """Incrementally update the Message content from a stream."""
         for chunk in stream:
             content = chunk["message"]["content"]
             self.content += content
@@ -69,9 +72,11 @@ class Message:
                         break
 
             if self.in_reasoning:
+                start_tag = f"<{self.reasoning_tag}>"  # ensure start_tag exists
                 end_tag = f"</{self.reasoning_tag}>"
                 if end_tag in self.content:
                     reasoning, _, remaining = self.content.partition(end_tag)
+
                     self.reasoning_text = reasoning.replace(start_tag, "")
                     self.main_text = (self.main_text or "") + remaining
                     self.in_reasoning = False
@@ -85,6 +90,7 @@ class Message:
 
         @classmethod
         def from_text(cls, role: ROLES, content: str):
+            """Create a Message instance from raw text content."""
             instance = cls(role=role, content=content)
 
             # Check each possible tag in order

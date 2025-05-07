@@ -1,51 +1,13 @@
-from string import Template
-from textwrap import dedent
-
 import ollama
 import streamlit as st
-
 from default_parameters import Parameters
+from helpers import CSS, HTMLTemplate
 from models import Message
 
-
-class HTMLTemplate:
-    """HTML hack for styling."""
-
-    base_style = Template(
-        dedent(
-            """
-            <style>
-                $css
-            </style>"""
-        )
-    )
-
-
-class CSS:
-    """Define CSS styles."""
-
-    page_style = """
-    .st-key-app_css button {
-        border-radius: 25px;
-        box-shadow: 3px 5px 10px 0px rgba(128, 128, 128, 0.245);
-        position: fixed;
-        top: 4rem;
-        right: 2rem;
-    }
-    details {
-        color: grey;
-    }
-    summary {
-        color: grey;
-        font-weight: bold;
-    }
-    """
-
-
+# Custom styling
 st.html(HTMLTemplate.base_style.substitute(css=CSS.page_style))
 
-
-# Intialize Streamlit Session State
+# Intialize Streamlit session state
 if "app_params" not in st.session_state:
     st.session_state.avatar = "😎"
 
@@ -68,7 +30,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []  # List of Messages
 
 
-# General Parameters
+# Parameters modal dialog
 @st.dialog("App Settings")
 def show_app_params():
     """Open app settings."""
@@ -84,7 +46,7 @@ def show_app_params():
             st.rerun()
 
 
-# Custom - Show Parameters Button
+# Custom - show parameters button
 if st.button("", icon=":material/format_paint:", type="primary", key="app_css"):
     show_app_params()
 
@@ -104,7 +66,7 @@ def set_system_msg() -> None:
         st.session_state.system_msg.content = prompt
         # Update Message History
         st.session_state.messages.append(st.session_state.system_msg)
-        # Debug Dump
+        # Debug dump
         if st.session_state.in_mirror:
             st.session_state.system_msg.rich_print()
         st.rerun()
@@ -264,7 +226,7 @@ with st.sidebar:
     if st.session_state.in_mirror:
         st.button("Dump Messages", on_click=dump_messages)
 
-# Body - Message History Display
+# Body - chat history display
 with st.container(key="chat_history"):
     for history_msg in st.session_state.messages:
         if history_msg.role == "user":
@@ -281,7 +243,7 @@ with st.container(key="chat_history"):
                         st.markdown(history_msg.reasoning_text)
                 st.markdown(history_msg.main_text)
 
-# User Input Handling
+# User input handling
 prompt_text = st.chat_input("Enter a prompt here...", key="prompt_text")
 if prompt_text:
     # Add user message
@@ -289,7 +251,7 @@ if prompt_text:
     st.chat_message("user", avatar=st.session_state.avatar).markdown(prompt_text)
     st.session_state.messages.append(user_msg)
 
-    # Debug Dump
+    # Debug dump
     if st.session_state.in_mirror:
         user_msg.rich_print()
 
@@ -303,7 +265,7 @@ if prompt_text:
         options=st.session_state.ollama_params,
     )
 
-    # Create a container for the assistant message
+    # Streaming assistant message display
     with st.container(key="current_response"):
         # Create response message
         assistant_msg = Message(role="assistant")
@@ -317,17 +279,17 @@ if prompt_text:
         # Stream and update placeholders incrementally
         for msg_chunk in assistant_msg.update_from_stream(stream):
             if msg_chunk.in_reasoning:
-                thinking_placeholder.markdown(msg_chunk.reasoning_text + "▌")
+                thinking_placeholder.markdown(f"{msg_chunk.reasoning_text}▌")
             else:
-                message_placeholder.markdown(msg_chunk.main_text + "▌")
+                message_placeholder.markdown(f"{msg_chunk.main_text}▌")
 
     # Final update without cursor
     thinking_placeholder.markdown(assistant_msg.reasoning_text or "")
     message_placeholder.markdown(assistant_msg.main_text or "")
 
-    # Append to Message History
+    # Append to history
     st.session_state.messages.append(assistant_msg)
 
-    # Debug Dump
+    # Debug dump
     if st.session_state.in_mirror:
         assistant_msg.rich_print()
