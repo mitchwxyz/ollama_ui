@@ -5,7 +5,7 @@ import ollama
 import streamlit as st
 
 from default_parameters import Parameters
-from helpers import replace_reasoning_tags
+from models import Message
 
 
 class HTMLTemplate:
@@ -44,23 +44,53 @@ class CSS:
 
 st.html(HTMLTemplate.base_style.substitute(css=CSS.page_style))
 
-# Intialize  Session State vars
+
+# Intialize Streamlit Session State
 if "app_params" not in st.session_state:
-    st.session_state.app_params = {"avatar": "😎"}
+    st.session_state.avatar = "😎"
+
+if "in_mirror" not in st.session_state:
+    st.session_state.in_mirror = False
+
 if "model_list" not in st.session_state:
     st.session_state.model_list = []
 
 if "system_msg" not in st.session_state:
-    st.session_state.system_msg = {"role": "system", "content": ""}
+    st.session_state.system_msg = Message(role="system", content="")
 
 if "input_params" not in st.session_state:
     st.session_state.input_params = dict()
 
-if "ollama_parms" not in st.session_state:
+if "ollama_params" not in st.session_state:
     st.session_state.ollama_params = ollama.Options()
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = []  # List of Messages
+
+
+# General Parameters
+@st.dialog("App Settings")
+def show_app_params():
+    """Open app settings."""
+    with st.form("Settings"):
+        avatar = st.selectbox("My Avatar", ["😎", "😀", "🤪"])
+        mirror_mode = st.toggle(
+            "Mirror messages to the console?", value=st.session_state.in_mirror
+        )
+
+        if st.form_submit_button("Save"):
+            st.session_state.avatar = avatar
+            st.session_state.in_mirror = mirror_mode
+            st.rerun()
+
+
+# Custom - Show Parameters Button
+if st.button("", icon=":material/format_paint:", type="primary", key="app_css"):
+    show_app_params()
+
+# Debug Mode
+if st.session_state.in_mirror:
+    st.badge("In Debug Mode!", icon="⚠️", color="grey")
 
 
 # Sidebar Functions
@@ -68,22 +98,29 @@ if "messages" not in st.session_state:
 def set_system_msg() -> None:
     """Open a dialog to set the system message."""
     prompt = st.text_area(
-        "Input system message", value=st.session_state.system_msg["content"]
+        "Input system message", value=st.session_state.system_msg.content
     )
     if st.button("Submit"):
-        st.session_state.system_msg = {"role": "system", "content": prompt}
-        st.session_state.messages = [
-            m for m in st.session_state.messages if m.get("role") != "system"
-        ]
+        st.session_state.system_msg.content = prompt
+        # Update Message History
         st.session_state.messages.append(st.session_state.system_msg)
+        # Debug Dump
+        if st.session_state.in_mirror:
+            st.session_state.system_msg.rich_print()
         st.rerun()
 
 
 def clear_chat() -> None:
     """Clear the chat history."""
     st.session_state.messages = [
-        m for m in st.session_state.messages if m.get("role") == "system"
+        m for m in st.session_state.messages if m.role == "system"
     ]
+
+
+def dump_messages() -> None:
+    """Print all Messages."""
+    for msg in st.session_state.messages:
+        msg.rich_print()
 
 
 # Sidebar - Model and Parameters
@@ -224,73 +261,73 @@ with st.sidebar:
                 or not st.session_state.ollama_params
             ):
                 st.session_state.ollama_params = ollama.Options(**form_params)
+    if st.session_state.in_mirror:
+        st.button("Dump Messages", on_click=dump_messages)
 
+# Body - Message History Display
+with st.container(key="chat_history"):
+    for history_msg in st.session_state.messages:
+        if history_msg.role == "user":
+            with st.chat_message(history_msg.role, avatar=st.session_state.avatar):
+                st.markdown(history_msg.content)
+        elif history_msg.role == "assistant":
+            with st.chat_message(
+                history_msg.role, avatar=st.session_state.input_params["icon"]
+            ):
+                if history_msg.reasoning_text:  # Expander if Reasoning Exists
+                    with st.expander(
+                        f"{history_msg.reasoning_tag or 'think'}", expanded=False
+                    ):
+                        st.markdown(history_msg.reasoning_text)
+                st.markdown(history_msg.main_text)
 
-# General Parameters
-@st.dialog("App Settings")
-def show_app_params():
-    """Open app settings."""
-    settings_temp = {}
-    with st.form("Settings"):
-        settings_temp["avatar"] = st.selectbox("My Avatar", ["😎", "😀", "🤪"])
-
-        if st.form_submit_button("Save"):
-            st.session_state.app_params = settings_temp
-            st.rerun()
-
-
-# Body
-for message in st.session_state.messages:
-    if message["role"] == "assistant":
-        st.chat_message(
-            message["role"], avatar=st.session_state.input_params["icon"]
-        ).markdown(replace_reasoning_tags(message["content"]), unsafe_allow_html=True)
-    elif message["role"] == "user":
-        st.chat_message(
-            message["role"], avatar=st.session_state.app_params.get("avatar")
-        ).markdown(message["content"])
-
+# User Input Handling
 prompt_text = st.chat_input("Enter a prompt here...", key="prompt_text")
 if prompt_text:
-    # Debug Input Params
-    # print(selected_model, st.session_state.ollama_params)
-    try:
-        st.session_state.messages.append({"role": "user", "content": prompt_text})
-        st.chat_message(
-            "user", avatar=st.session_state.app_params.get("avatar")
-        ).markdown(prompt_text)
+    # Add user message
+    user_msg = Message(role="user", content=prompt_text)
+    st.chat_message("user", avatar=st.session_state.avatar).markdown(prompt_text)
+    st.session_state.messages.append(user_msg)
 
+    # Debug Dump
+    if st.session_state.in_mirror:
+        user_msg.rich_print()
+
+    # Generate assistant response
+    stream = ollama.chat(
+        model=selected_model,
+        messages=[
+            {"role": m.role, "content": m.content} for m in st.session_state.messages
+        ],
+        stream=True,
+        options=st.session_state.ollama_params,
+    )
+
+    # Create a container for the assistant message
+    with st.container(key="current_response"):
+        # Create response message
+        assistant_msg = Message(role="assistant")
         with st.chat_message("assistant", avatar=st.session_state.input_params["icon"]):
+            # Create placeholders inside the chat message
+            reasoning_expander = st.expander("thinking", expanded=True)
+            with reasoning_expander:
+                thinking_placeholder = st.empty()
             message_placeholder = st.empty()
-            full_response = ""
 
-            stream = ollama.chat(
-                model=selected_model,
-                messages=[
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                ],
-                stream=True,
-                options=st.session_state.ollama_params,
-                format="",
-            )
+        # Stream and update placeholders incrementally
+        for msg_chunk in assistant_msg.update_from_stream(stream):
+            if msg_chunk.in_reasoning:
+                thinking_placeholder.markdown(msg_chunk.reasoning_text + "▌")
+            else:
+                message_placeholder.markdown(msg_chunk.main_text + "▌")
 
-            for chunk in stream:
-                if "message" in chunk:
-                    content = chunk["message"]["content"]
-                    full_response += content
-                    message_placeholder.markdown(full_response + "▌")
+    # Final update without cursor
+    thinking_placeholder.markdown(assistant_msg.reasoning_text or "")
+    message_placeholder.markdown(assistant_msg.main_text or "")
 
-            resonse_r1 = replace_reasoning_tags(full_response)
-            message_placeholder.markdown(resonse_r1, unsafe_allow_html=True)
+    # Append to Message History
+    st.session_state.messages.append(assistant_msg)
 
-        st.session_state.messages.append(
-            {"role": "assistant", "content": full_response}
-        )
-
-    except Exception as e:
-        st.error(e, icon="⛔️")
-
-# Custom CSS Elements
-if st.button("", icon=":material/format_paint:", type="primary", key="app_css"):
-    show_app_params()
+    # Debug Dump
+    if st.session_state.in_mirror:
+        assistant_msg.rich_print()
